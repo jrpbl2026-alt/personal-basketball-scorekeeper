@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<meta name="description" content="Private offline basketball scorekeeper">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Personal Basketball Scorekeeper</title>
+<style>
+:root{--bg:#0b1220;--panel:#131f32;--panel2:#1b2a40;--line:#2b3c55;--txt:#f4f7fb;--muted:#a9b7ca;--accent:#f59e0b;--green:#22c55e;--red:#ef4444}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px system-ui,-apple-system,Segoe UI,sans-serif;padding-bottom:82px}
+header{position:sticky;top:0;z-index:5;background:#101827;border-bottom:1px solid var(--line);padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+h1{font-size:18px;margin:0}h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px;color:#dce6f3}
+main{max-width:760px;margin:auto;padding:14px}.tabs{position:fixed;bottom:0;left:0;right:0;z-index:8;background:#101827;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 2px calc(8px + env(safe-area-inset-bottom))}
+.tabs button{background:none;border:0;color:var(--muted);font-size:11px;padding:5px;flex:1}.tabs button.active{color:var(--accent)}
+.tabicon{display:block;font-size:20px;margin-bottom:2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center}.between{justify-content:space-between}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;color:var(--muted);font-size:12px;margin:8px 0 4px}
+input,select{width:100%;background:#0d1727;border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:11px;font:inherit;min-width:0}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer}
+button.primary{background:var(--accent);color:#1b1609;border-color:var(--accent);font-weight:700}
+button.good{background:#14532d;border-color:#166534}button.danger{background:#541d25;border-color:#7f1d1d}
+button.small{padding:6px 9px;font-size:12px}.muted{color:var(--muted)}.bigscore{font-size:42px;font-weight:800;line-height:1.1}
+.scoreboard{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;text-align:center;align-items:center}
+.teamname{font-weight:700;overflow-wrap:anywhere}.clock{font-size:25px;font-weight:800}.pill{display:inline-block;background:#24354d;padding:4px 8px;border-radius:99px;font-size:11px;color:#d9e5f4}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.statbtn{padding:12px 4px;min-height:58px}.statbtn b{display:block;font-size:18px;color:var(--accent)}
+.playerrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.playerrow:last-child{border:0}.playername{font-weight:650}.statsline{font-size:12px;color:var(--muted)}
+.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{flex:1}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+.empty{text-align:center;padding:24px;color:var(--muted)}.hidden{display:none!important}.notice{font-size:12px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+<header><h1>🏀 Personal Scorekeeper</h1><span class="pill" id="saveState">Saved on this phone</span></header>
+<main>
+<section id="home" class="page">
+ <div class="card">
+  <div class="row between"><h2>Dashboard</h2><span class="pill">PRIVATE · OFFLINE</span></div>
+  <div class="grid2"><div><div class="muted">Teams</div><div class="bigscore" id="teamCount">0</div></div><div><div class="muted">Players</div><div class="bigscore" id="playerCount">0</div></div></div>
+  <div class="grid2" style="margin-top:12px"><div><div class="muted">Games saved</div><div class="bigscore" id="gameCount">0</div></div><div><div class="muted">Completed</div><div class="bigscore" id="doneCount">0</div></div></div>
+  <button class="primary" style="width:100%;margin-top:14px" onclick="showPage('newgame')">＋ Start a new game</button>
+ </div>
+ <div class="card"><h3>Recent games</h3><div id="recentGames" class="empty">No games recorded yet.</div></div>
+ <div class="card"><h3>Important backup reminder</h3><p class="notice">Your records are stored in this browser on this phone. Export CSV regularly and keep a copy somewhere safe. Clearing browser data can erase records.</p><button onclick="exportCSV()">Export all player stats (CSV)</button></div>
+</section>
+
+<section id="teams" class="page hidden">
+ <div class="card"><h2>Teams</h2>
+  <label>Team name</label><input id="teamName" placeholder="e.g. JCRC White">
+  <div class="row" style="margin-top:10px"><button class="primary" onclick="addTeam()">Add team</button></div>
+  <div id="teamList" style="margin-top:12px"></div>
+ </div>
+ <div class="card"><h2>Players</h2>
+  <label>Player name</label><input id="playerName" placeholder="Full name">
+  <div class="grid2"><div><label>Jersey number</label><input id="jersey" inputmode="numeric" placeholder=" e.g. 7"></div><div><label>Team</label><select id="playerTeam"></select></div></div>
+  <label>Position (optional)</label><select id="position"><option value="">Not specified</option><option>PG</option><option>SG</option><option>SF</option><option>PF</option><option>C</option></select>
+  <button class="primary" style="margin-top:10px" onclick="addPlayer()">Add player</button>
+  <div id="playerList" style="margin-top:12px"></div>
+ </div>
+</section>
+
+<section id="newgame" class="page hidden">
+ <div class="card"><h2>Create game</h2>
+  <label>Game date</label><input id="gameDate" type="date">
+  <label>Venue (optional)</label><input id="venue" placeholder="Court / venue">
+  <div class="grid2"><div><label>Home team</label><select id="homeTeam"></select></div><div><label>Away team</label><select id="awayTeam"></select></div></div>
+  <div class="grid2"><div><label>Quarter length (minutes)</label><select id="periodLength"><option>10</option><option selected>12</option><option>8</option><option>Others</option></select></div><div><label>Game format</label><select id="periodCount"><option value="4">4 quarters</option><option value="2">2 halves</option></select></div></div>
+  <button class="primary" style="width:100%;margin-top:14px" onclick="createGame()">Create and open scorekeeper</button>
+ </div>
+ <div class="card"><p class="notice">Add your teams and player rosters first. A player is attached to their registered team. The game screen lets you select active players from both rosters.</p></div>
+</section>
+
+<section id="live" class="page hidden">
+ <div class="card" id="liveCard"><div class="empty">Create a game to begin.</div></div>
+ <div class="card" id="playerStatCard"><div class="empty">Player controls will appear here.</div></div>
+</section>
+
+<section id="history" class="page hidden">
+ <div class="card"><h2>Game history</h2><div id="historyList" class="empty">No saved games yet.</div></div>
+ <div class="card"><h2>Player statistics</h2><div id="leaderboard" class="empty">Record a game to see statistics.</div></div>
+</section>
+</main>
+<nav class="tabs">
+ <button class="active" data-page="home" onclick="showPage('home')"><span class="tabicon">⌂</span>Home</button>
+ <button data-page="teams" onclick="showPage('teams')"><span class="tabicon">♟</span>Teams</button>
+ <button data-page="newgame" onclick="showPage('newgame')"><span class="tabicon">＋</span>New Game</button>
+ <button data-page="live" onclick="showPage('live')"><span class="tabicon">◉</span>Live</button>
+ <button data-page="history" onclick="showPage('history')"><span class="tabicon">▤</span>Stats</button>
+</nav>
+<script>
+const KEY='pbs_scorekeeper_v1';
+let db=loadDB(), currentGameId=null, selectedPlayerId=null, timerHandle=null;
+function blankDB(){return {teams:[],players:[],games:[]}}
+function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||blankDB()}catch(e){return blankDB()}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));document.getElementById('saveState').textContent='Saved on this phone';refresh()}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function team(id){return db.teams.find(x=>x.id===id)}
+function player(id){return db.players.find(x=>x.id===id)}
+function game(){return db.games.find(x=>x.id===currentGameId)}
+function showPage(p){document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden'));document.getElementById(p).classList.remove('hidden');document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));refresh()}
+function addTeam(){let n=document.getElementById('teamName').value.trim();if(!n)return alert('Enter a team name.');if(db.teams.some(t=>t.name.toLowerCase()===n.toLowerCase()))return alert('That team already exists.');db.teams.push({id:uid(),name:n});document.getElementById('teamName').value='';save()}
+function addPlayer(){let n=document.getElementById('playerName').value.trim(),tid=document.getElementById('playerTeam').value;if(!n||!tid)return alert('Enter a player name and choose a team.');db.players.push({id:uid(),name:n,number:document.getElementById('jersey').value.trim(),teamId:tid,position:document.getElementById('position').value});['playerName','jersey'].forEach(id=>document.getElementById(id).value='');save()}
+function removeTeam(id){if(db.players.some(p=>p.teamId===id))return alert('Remove this team’s players first.');if(confirm('Delete this team?')){db.teams=db.teams.filter(t=>t.id!==id);save()}}
+function removePlayer(id){if(confirm('Delete this player? Historical stats will remain in saved games.')){db.players=db.players.filter(p=>p.id!==id);save()}}
+function createGame(){let h=document.getElementById('homeTeam').value,a=document.getElementById('awayTeam').value;if(!h||!a||h===a)return alert('Choose two different teams.');let len=Number(document.getElementById('periodLength').value);if(!len||len<1)len=12;let g={id:uid(),date:document.getElementById('gameDate').value||new Date().toISOString().slice(0,10),venue:document.getElementById('venue').value,homeId:h,awayId:a,periodLength:len,periodCount:Number(document.getElementById('periodCount').value),period:1,seconds:len*60,clockRunning:false,status:'Live',homeScore:0,awayScore:0,teamFouls:{},timeouts:{},stats:{},periodScores:{},created:Date.now()};db.games.push(g);currentGameId=g.id;save();showPage('live')}
+function sideTeam(g,side){return team(side==='home'?g.homeId:g.awayId)}
+function sideScore(g,side){return side==='home'?g.homeScore:g.awayScore}
+function statFor(g,pid){if(!g.stats[pid])g.stats[pid]={fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,oreb:0,dreb:0,ast:0,stl:0,blk:0,tov:0,pf:0,minutes:0,plusminus:0};return g.stats[pid]}
+function scoreStat(pid,kind,delta){let g=game(),p=player(pid);if(!g||!p)return;let s=statFor(g,pid),side=p.teamId===g.homeId?'home':p.teamId===g.awayId?'away':null;if(!side)return;
+ if(kind==='2pm'){s.fgm+=delta;s.fga+=delta;g[side+'Score']+=2*delta}
+ if(kind==='2pa'){s.fga+=delta}
+ if(kind==='3pm'){s.fgm+=delta;s.fga+=delta;s.tpm+=delta;s.tpa+=delta;g[side+'Score']+=3*delta}
+ if(kind==='3pa'){s.fga+=delta;s.tpa+=delta}
+ if(kind==='ftm'){s.ftm+=delta;s.fta+=delta;g[side+'Score']+=delta}
+ if(kind==='fta'){s.fta+=delta}
+ if(kind==='oreb')s.oreb+=delta;if(kind==='dreb')s.dreb+=delta;if(kind==='ast')s.ast+=delta;if(kind==='stl')s.stl+=delta;if(kind==='blk')s.blk+=delta;if(kind==='tov')s.tov+=delta;if(kind==='pf')s.pf+=delta;
+ Object.keys(s).forEach(k=>{if(typeof s[k]==='number'&&s[k]<0)s[k]=0});if(g[side+'Score']<0)g[side+'Score']=0;save();renderLive()}
+function setManual(pid){let g=game(),p=player(pid);if(!g||!p)return;let s=statFor(g,pid);let fields=[['fgm','FGM'],['fga','FGA'],['tpm','3PM'],['tpa','3PA'],['ftm','FTM'],['fta','FTA'],['oreb','OREB'],['dreb','DREB'],['ast','AST'],['stl','STL'],['blk','BLK'],['tov','TOV'],['pf','PF'],['minutes','MIN'],['plusminus','+/-']];let vals={};for(let [k,label] of fields){let v=prompt(label+' for '+p.name+' (current '+s[k]+')',s[k]);if(v===null)return;let n=Number(v);if(!Number.isFinite(n)||n<0)return alert('Enter a valid non-negative number.');vals[k]=n}Object.assign(s,vals);recalcScores(g);save();renderLive()}
+function recalcScores(g){g.homeScore=0;g.awayScore=0;for(let [pid,s] of Object.entries(g.stats)){let p=player(pid);if(!p)continue;let pts=2*(s.fgm-s.tpm)+3*s.tpm+s.ftm;if(p.teamId===g.homeId)g.homeScore+=pts;else if(p.teamId===g.awayId)g.awayScore+=pts}}
+function changePeriod(d){let g=game();if(!g)return;g.period=Math.max(1,Math.min(g.periodCount+2,g.period+d));g.seconds=g.periodLength*60;save();renderLive()}
+function toggleClock(){let g=game();if(!g)return;g.clockRunning=!g.clockRunning;if(g.clockRunning&&!timerHandle)timerHandle=setInterval(()=>{let x=game();if(!x||!x.clockRunning){clearInterval(timerHandle);timerHandle=null;return}if(x.seconds>0)x.seconds--;else{x.clockRunning=false;clearInterval(timerHandle);timerHandle=null;navigator.vibrate?.(250)}saveClock();renderClock()},1000);else if(!g.clockRunning&&timerHandle){clearInterval(timerHandle);timerHandle=null}save();renderClock()}
+function saveClock(){localStorage.setItem(KEY,JSON.stringify(db))}
+function renderClock(){let g=game(),el=document.getElementById('clock');if(g&&el)el.textContent=fmt(g.seconds)}
+function fmt(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function adjustClock(){let g=game();if(!g)return;let v=prompt('Set game clock (MM:SS)',fmt(g.seconds));if(v===null)return;let m=v.match(/^(\d{1,3}):([0-5]\d)$/);if(!m)return alert('Use MM:SS, for example 08:35.');g.seconds=Number(m[1])*60+Number(m[2]);save();renderLive()}
+function addTeamFoul(side){let g=game();if(!g)return;g.teamFouls[side]=(g.teamFouls[side]||0)+1;save();renderLive()}
+function undoTeamFoul(side){let g=game();if(!g)return;g.teamFouls[side]=Math.max(0,(g.teamFouls[side]||0)-1);save();renderLive()}
+function finishGame(){let g=game();if(!g)return;if(!confirm('Mark this game as completed?'))return;g.status='Final';g.clockRunning=false;save();showPage('history')}
+function renderLive(){let g=game(),box=document.getElementById('liveCard'),statbox=document.getElementById('playerStatCard');if(!g){box.innerHTML='<div class="empty">Create a game to begin.</div>';statbox.innerHTML='';return}
+ let h=sideTeam(g,'home'),a=sideTeam(g,'away');
+ box.innerHTML=`<div class="row between"><span class="pill">${esc(g.status)}</span><span class="pill">${esc(g.date)} · ${esc(g.venue||'No venue')}</span></div>
+ <div class="scoreboard" style="margin:18px 0"><div><div class="teamname">${esc(h?.name||'Home')}</div><div class="bigscore">${g.homeScore}</div><div class="muted">Fouls ${g.teamFouls.home||0}</div></div><div><div class="pill">Q${g.period}</div><div class="clock" id="clock">${fmt(g.seconds)}</div><button class="small" onclick="adjustClock()">Set</button></div><div><div class="teamname">${esc(a?.name||'Away')}</div><div class="bigscore">${g.awayScore}</div><div class="muted">Fouls ${g.teamFouls.away||0}</div></div></div>
+ <div class="grid2"><div class="actions"><button onclick="addTeamFoul('home')">Home +Foul</button><button class="small" onclick="undoTeamFoul('home')">−</button></div><div class="actions"><button onclick="addTeamFoul('away')">Away +Foul</button><button class="small" onclick="undoTeamFoul('away')">−</button></div></div>
+ <div class="actions" style="margin-top:12px"><button class="primary" onclick="toggleClock()">${g.clockRunning?'Pause clock':'Start clock'}</button><button onclick="changePeriod(-1)">− Period</button><button onclick="changePeriod(1)">+ Period</button><button class="danger" onclick="finishGame()">Finish game</button></div>
+ <p class="notice">Clock runs while this app remains active. For official timing, use a separate game clock as backup.</p>`;
+ let roster=db.players.filter(p=>p.teamId===g.homeId||p.teamId===g.awayId);
+ statbox.innerHTML='<h2>Player stat entry</h2>'+(!roster.length?'<div class="empty">Add players to both teams first.</div>':`<label>Select player</label><select id="activePlayer" onchange="selectedPlayerId=this.value;renderPlayerControls()">${roster.map(p=>`<option value="${p.id}" ${p.id===selectedPlayerId?'selected':''}>${esc(team(p.teamId)?.name)} · #${esc(p.number||'—')} ${esc(p.name)}</option>`).join('')}</select><div id="playerControls"></div>`);
+ if(!selectedPlayerId||!roster.some(p=>p.id===selectedPlayerId))selectedPlayerId=roster[0]?.id||null;
+ if(roster.length){document.getElementById('activePlayer').value=selectedPlayerId;renderPlayerControls()}
+}
+function renderPlayerControls(){let g=game(),p=player(selectedPlayerId),el=document.getElementById('playerControls');if(!g||!p||!el)return;let s=statFor(g,p.id),pts=2*(s.fgm-s.tpm)+3*s.tpm+s.ftm;let stats=[['2pm','+2'],['3pm','+3'],['ftm','FT'],['oreb','OREB'],['dreb','DREB'],['ast','AST'],['stl','STL'],['blk','BLK'],['tov','TOV'],['pf','PF']];el.innerHTML=`<div class="card" style="padding:10px;margin-top:10px"><div class="row between"><b>${esc(p.name)} · #${esc(p.number||'—')}</b><b>${pts} PTS</b></div><div class="statsline">FG ${s.fgm}/${s.fga} · 3PT ${s.tpm}/${s.tpa} · FT ${s.ftm}/${s.fta} · REB ${s.oreb+s.dreb} · AST ${s.ast}</div></div><div class="statgrid">${stats.map(([k,t])=>`<button class="statbtn" onclick="scoreStat('${p.id}','${k}',1)"><b>+1</b>${t}</button>`).join('')}</div><div class="actions" style="margin-top:9px"><button onclick="setManual('${p.id}')">✎ Manual edit all stats</button><button onclick="scoreStat('${p.id}','2pm',-1)">Undo last +2</button><button onclick="scoreStat('${p.id}','3pm',-1)">Undo last +3</button><button onclick="scoreStat('${p.id}','ftm',-1)">Undo last FT</button></div>`}
+function refresh(){document.getElementById('teamCount').textContent=db.teams.length;document.getElementById('playerCount').textContent=db.players.length;document.getElementById('gameCount').textContent=db.games.length;document.getElementById('doneCount').textContent=db.games.filter(g=>g.status==='Final').length;
+ document.getElementById('teamList').innerHTML=db.teams.map(t=>`<div class="playerrow"><span>${esc(t.name)} <span class="muted">(${db.players.filter(p=>p.teamId===t.id).length} players)</span></span><button class="small danger" onclick="removeTeam('${t.id}')">Delete</button></div>`).join('')||'<div class="empty">No teams added.</div>';
+ let opts=db.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');['playerTeam','homeTeam','awayTeam'].forEach(id=>{let el=document.getElementById(id),old=el.value;el.innerHTML=opts; if([...el.options].some(o=>o.value===old))el.value=old});
+ document.getElementById('playerList').innerHTML=db.players.map(p=>`<div class="playerrow"><span><b>#${esc(p.number||'—')} ${esc(p.name)}</b><div class="statsline">${esc(team(p.teamId)?.name||'Unknown team')} · ${esc(p.position||'Position not set')}</div></span><button class="small danger" onclick="removePlayer('${p.id}')">Delete</button></div>`).join('')||'<div class="empty">No players added.</div>';
+ let rec=[...db.games].reverse().slice(0,4);document.getElementById('recentGames').innerHTML=rec.map(g=>gameLine(g)).join('')||'No games recorded yet.';
+ document.getElementById('historyList').innerHTML=[...db.games].reverse().map(g=>gameLine(g,true)).join('')||'No games saved yet.';
+ renderLeaderboard();if(!document.getElementById('live').classList.contains('hidden'))renderLive()
+}
+function gameLine(g,full=false){return `<div class="playerrow"><span><b>${esc(team(g.homeId)?.name||'Home')} ${g.homeScore} – ${g.awayScore} ${esc(team(g.awayId)?.name||'Away')}</b><div class="statsline">${esc(g.date)} · ${esc(g.status)} ${g.venue?'· '+esc(g.venue):''}</div></span><button class="small" onclick="openGame('${g.id}')">Open</button></div>`}
+function openGame(id){currentGameId=id;selectedPlayerId=null;showPage('live')}
+function renderLeaderboard(){let totals={};db.games.forEach(g=>Object.entries(g.stats||{}).forEach(([pid,s])=>{let p=player(pid);if(!p)return;let t=totals[pid]||(totals[pid]={name:p.name,team:team(p.teamId)?.name||'',gp:0,pts:0,reb:0,ast:0,stl:0,blk:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,tov:0,pf:0});t.gp++;t.pts+=2*(s.fgm-s.tpm)+3*s.tpm+s.ftm;t.reb+=s.oreb+s.dreb;t.ast+=s.ast;t.stl+=s.stl;t.blk+=s.blk;t.fgm+=s.fgm;t.fga+=s.fga;t.tpm+=s.tpm;t.tpa+=s.tpa;t.ftm+=s.ftm;t.fta+=s.fta;t.tov+=s.tov;t.pf+=s.pf}));
+ let arr=Object.values(totals).sort((a,b)=>b.pts-a.pts);document.getElementById('leaderboard').innerHTML=arr.length?`<div style="overflow:auto"><table><thead><tr><th>Player</th><th>GP</th><th>PPG</th><th>RPG</th><th>APG</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead><tbody>${arr.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.gp}</td><td>${(t.pts/t.gp).toFixed(1)}</td><td>${(t.reb/t.gp).toFixed(1)}</td><td>${(t.ast/t.gp).toFixed(1)}</td><td>${t.fga?(100*t.fgm/t.fga).toFixed(1):'0.0'}</td><td>${t.tpa?(100*t.tpm/t.tpa).toFixed(1):'0.0'}</td><td>${t.fta?(100*t.ftm/t.fta).toFixed(1):'0.0'}</td></tr>`).join('')}</tbody></table></div>`:'No player statistics yet.'}
+function exportCSV(){let rows=[['GameID','Date','Status','Team','Player','Jersey','FGM','FGA','3PM','3PA','FTM','FTA','PTS','OREB','DREB','REB','AST','STL','BLK','TOV','PF','MIN','PlusMinus']];db.games.forEach(g=>Object.entries(g.stats||{}).forEach(([pid,s])=>{let p=player(pid);let tm=p?team(p.teamId):null;if(!p)return;let pts=2*(s.fgm-s.tpm)+3*s.tpm+s.ftm;rows.push([g.id,g.date,g.status,tm?.name||'',p.name,p.number,s.fgm,s.fga,s.tpm,s.tpa,s.ftm,s.fta,pts,s.oreb,s.dreb,s.oreb+s.dreb,s.ast,s.stl,s.blk,s.tov,s.pf,s.minutes,s.plusminus])}));let csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');download('basketball_player_stats.csv','text/csv;charset=utf-8',csv)}
+function download(name,type,data){let a=document.createElement('a'),url=URL.createObjectURL(new Blob([data],{type}));a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
+document.getElementById('gameDate').value=new Date().toISOString().slice(0,10);
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+refresh();
+</script>
+</body></html>

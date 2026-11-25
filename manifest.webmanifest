@@ -1,0 +1,10 @@
+{
+  "name": "Personal Basketball Scorekeeper",
+  "short_name": "Scorekeeper",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#101827",
+  "description": "Private offline basketball scorekeeping app",
+  "icons": []
+}
